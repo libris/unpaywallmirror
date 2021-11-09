@@ -8,7 +8,11 @@ import java.io.IOException;
 public class Api extends HttpServlet {
     public void init() {
         Index index = new Index();
-        index.indexDirectory("/tmp/splittest");
+        try {
+            index.indexDirectory("/tmp/splittest");
+        } catch (Throwable e) {
+            // TODO
+        }
     }
 
     public void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {

@@ -5,8 +5,13 @@ apply from: './gretty.plugin'
 sourceCompatibility = 17
 targetCompatibility = 17
 
+dependencies {
+    implementation 'org.codehaus.jackson:jackson-mapper-asl:1.9.13'
+}
+
 gretty {
     systemProperties 'xl.secret.properties': System.getProperty("xl.secret.properties")
     httpPort = 8781
     scanInterval = 0
+    jvmArgs = ['-Xmx3g']
 }
