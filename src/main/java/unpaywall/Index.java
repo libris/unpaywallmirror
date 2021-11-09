@@ -37,21 +37,44 @@ public class Index {
     data grows), let's just size the table at 2Gb and call it a day.
      */
 
-    int[] table;
+    final int[] table;
     final int tableSize = 536870912; // This number of ints = 2Gb ( 2*1024*1024*1024/4 )
     final ObjectMapper mapper = new ObjectMapper();
+    final String path;
+    int indexCount = 0;
 
-    public void indexDirectory(String path) throws IOException {
-        table = new int[tableSize];
+    public String getIndexedAtDoi(String doi) {
+        int hash = Math.abs(doi.hashCode());
+        int tableIndex = hash % (tableSize / 2);
+
+
+        int linearProbe = 0;
+        while ( table[ (tableIndex + linearProbe) * 2 + 0] != 0 ) {
+            int fileNumber = table[ (tableIndex + linearProbe) * 2 + 0];
+            int offset = table[ (tableIndex + linearProbe) * 2 + 1];
+            ++linearProbe;
+
+            // If this is the one, return it!
+        }
+
+        return null;
+    }
+
+    public Index(String path) throws IOException {
+        this.path = path;
+        table = new int[tableSize]; // All initial zeros, by lang spec
         File directory = new File(path);
         for (File f : directory.listFiles()) {
-            System.err.println("LOL: " + f.getName());
             if (!f.isDirectory()) {
                 // TODO: IN PARALLEL!
                 indexFile(f);
             }
         }
     }
+
+    /*private String getEntryAt(int fileNumber, int offset) {
+
+    }*/
 
     private void indexFile(File file) throws IOException {
         System.err.println("Scanning file: " + file.getName());
@@ -67,13 +90,26 @@ public class Index {
                 Map json = mapper.readValue(line, HashMap.class);
                 String doi = (String) json.get("doi");
 
-                int hash = doi.hashCode();
+                // insert into index
+                int hash = Math.abs(doi.hashCode());
+                int tableIndex = hash % (tableSize / 2);
                 int offset = entryBeginsAt;
+                int linearProbe = 0;
+                while ( table[ (tableIndex + linearProbe) * 2 + 0] != 0 ) {
+                    ++linearProbe;
+                }
+                table[ (tableIndex + linearProbe) * 2 + 0] = fileNumber;
+                table[ (tableIndex + linearProbe) * 2 + 1] = offset;
 
-                System.err.println("Passing doi: " + doi + " in file number: " + fileNumber + " at offset: " + offset);
+                ++indexCount;
+
+                if ( (float) indexCount > (tableSize / 2.0 * 0.7) ) {
+                    System.err.println("WARNING! The index is filled to above 70% of capacity. You need to increase the 'tableSize' variable!");
+                }
+
+                System.err.println("Indexing doi: " + doi + " in file number: " + fileNumber + " at offset: " + entryBeginsAt);
 
                 entryBeginsAt = i+1;
-
             }
         }
     }

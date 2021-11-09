@@ -7,9 +7,9 @@ import java.io.IOException;
 
 public class Api extends HttpServlet {
     public void init() {
-        Index index = new Index();
+        Index index;
         try {
-            index.indexDirectory("/tmp/splittest");
+            index = new Index("/tmp/splittest");
         } catch (Throwable e) {
             // TODO
         }
