@@ -44,7 +44,7 @@ public class Index {
     final String path;
     int indexCount = 0;
 
-    public String getIndexedAtDoi(String doi) throws IOException {
+    public String getByDoi(String doi) throws IOException {
         int hash = Math.abs(doi.hashCode());
         int tableIndex = hash % (tableSize / 2);
 
@@ -79,7 +79,7 @@ public class Index {
 
     private String getEntryAt(int fileNumber, int offset) throws IOException {
         String fileName = String.format("%08d.gz", fileNumber);
-        GZIPInputStream in = new GZIPInputStream(new FileInputStream(fileName));
+        GZIPInputStream in = new GZIPInputStream(new FileInputStream(path+"/"+fileName));
         in.skipNBytes(offset);
         byte[] data = in.readAllBytes();
         for (int i = 0; i < data.length; ++i) {
