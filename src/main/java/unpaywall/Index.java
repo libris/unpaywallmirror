@@ -1,10 +1,12 @@
 package unpaywall;
 
 import java.io.*;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 import org.codehaus.jackson.map.ObjectMapper;
 
@@ -42,14 +44,16 @@ public class Index {
     final String path;
     int indexCount = 0;
 
+    // TODO: Close the damn streams (!!)
+
     public String getByDoi(String doi) throws IOException {
         int hash = Math.abs(doi.hashCode());
         int tableIndex = hash % (tableSize / 2);
 
         int linearProbe = 0;
-        while ( table[ (tableIndex + linearProbe) * 2 + 0] != 0 ) {
-            int fileNumber = table[ (tableIndex + linearProbe) * 2 + 0];
-            int offset = table[ (tableIndex + linearProbe) * 2 + 1];
+        while ( table[ (tableIndex + linearProbe) * 2 + 0 ] != 0 ) {
+            int fileNumber = table[ (tableIndex + linearProbe) * 2 + 0 ];
+            int offset = table[ (tableIndex + linearProbe) * 2 + 1 ];
             ++linearProbe;
 
             // If this is the one, return it!
@@ -66,12 +70,17 @@ public class Index {
     public Index(String path) throws IOException {
         this.path = path;
         table = new int[tableSize]; // All initial zeros, by lang spec
-        File directory = new File(path);
-        for (File f : directory.listFiles()) {
-            if (!f.isDirectory()) {
-                // TODO: IN PARALLEL?
-                indexFile(f);
+
+        if (!loadIndexFromFile()) {
+            // Build an index
+            File directory = new File(path);
+            for (File f : directory.listFiles()) {
+                if (!f.isDirectory()) {
+                    // TODO: IN PARALLEL?
+                    indexFile(f);
+                }
             }
+            writeIndexToFile();
         }
     }
 
@@ -107,15 +116,15 @@ public class Index {
                 int tableIndex = hash % (tableSize / 2);
                 int offset = entryBeginsAt;
                 int linearProbe = 0;
-                while ( table[ (tableIndex + linearProbe) * 2 + 0] != 0 ) {
+                while ( table[ (tableIndex + linearProbe) * 2 + 0 ] != 0 ) {
                     ++linearProbe;
                 }
-                table[ (tableIndex + linearProbe) * 2 + 0] = fileNumber;
-                table[ (tableIndex + linearProbe) * 2 + 1] = offset;
+                table[ (tableIndex + linearProbe) * 2 + 0 ] = fileNumber;
+                table[ (tableIndex + linearProbe) * 2 + 1 ] = offset;
 
                 ++indexCount;
 
-                if ( (float) indexCount > (tableSize / 2.0 * 0.7) ) {
+                if ( (float) indexCount > (tableSize / 2.0f * 0.7f) ) {
                     System.err.println("WARNING! The index is filled to above 70% of capacity. You need to increase the 'tableSize' variable!");
                 }
 
@@ -124,5 +133,29 @@ public class Index {
                 entryBeginsAt = i+1;
             }
         }
+    }
+
+    private void writeIndexToFile() throws IOException {
+        GZIPOutputStream out = new GZIPOutputStream(new FileOutputStream(path+"/index"));
+        ByteBuffer buf = ByteBuffer.allocate(4);
+        for (int i = 0; i < tableSize; ++i) {
+            buf.putInt(table[i]);
+            out.write(buf.array());
+        }
+    }
+
+    private boolean loadIndexFromFile() throws IOException {
+        File f = new File(path+"/index");
+        if (!f.exists())
+            return false;
+
+        byte[] b = new byte[4];
+        ByteBuffer buf = ByteBuffer.wrap(b);
+        GZIPInputStream in = new GZIPInputStream(new FileInputStream(f));
+        for (int i = 0; i < tableSize; ++i) {
+            in.readNBytes(b, 0, 4);
+            table[i] = buf.getInt();
+        }
+        return true;
     }
 }
