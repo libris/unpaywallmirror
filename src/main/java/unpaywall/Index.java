@@ -16,7 +16,8 @@ public class Index {
     This class represents a table, where an ID is mapped to a (file+offset) pair, where
     the relevant entry is stored. In order to not consume extravagant amounts of memory by also
     storing the full key strings in the table, the index is allowed to output extra (incorrect)
-    entries in the case of a hash collision. These extra entries are filtered out before returning.
+    entries in the case of a hash collision (or linear probe overlap). These extra entries are
+    easily filtered out before returning.
 
     Because Java works the way it works, there's no direct way to store an array of instances.
     Java will instead happily give you an array of pointers to instances, which isn't what we
@@ -43,10 +44,9 @@ public class Index {
     final String path;
     int indexCount = 0;
 
-    public String getIndexedAtDoi(String doi) {
+    public String getIndexedAtDoi(String doi) throws IOException {
         int hash = Math.abs(doi.hashCode());
         int tableIndex = hash % (tableSize / 2);
-
 
         int linearProbe = 0;
         while ( table[ (tableIndex + linearProbe) * 2 + 0] != 0 ) {
@@ -55,6 +55,11 @@ public class Index {
             ++linearProbe;
 
             // If this is the one, return it!
+            String entry = getEntryAt(fileNumber, offset);
+            Map json = mapper.readValue(entry, HashMap.class);
+            String candidateDoi = (String) json.get("doi");
+            if (candidateDoi.equals(doi))
+                return entry;
         }
 
         return null;
@@ -66,15 +71,24 @@ public class Index {
         File directory = new File(path);
         for (File f : directory.listFiles()) {
             if (!f.isDirectory()) {
-                // TODO: IN PARALLEL!
+                // TODO: IN PARALLEL?
                 indexFile(f);
             }
         }
     }
 
-    /*private String getEntryAt(int fileNumber, int offset) {
-
-    }*/
+    private String getEntryAt(int fileNumber, int offset) throws IOException {
+        String fileName = String.format("%08d.gz", fileNumber);
+        GZIPInputStream in = new GZIPInputStream(new FileInputStream(fileName));
+        in.skipNBytes(offset);
+        byte[] data = in.readAllBytes();
+        for (int i = 0; i < data.length; ++i) {
+            if (data[i] == 10 || i == data.length - 1) { // = LF (\n) or EOF
+                return new String(data, 0, i, StandardCharsets.UTF_8);
+            }
+        }
+        return null; // can't happen
+    }
 
     private void indexFile(File file) throws IOException {
         System.err.println("Scanning file: " + file.getName());

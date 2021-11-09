@@ -10,6 +10,9 @@ public class Api extends HttpServlet {
         Index index;
         try {
             index = new Index("/tmp/splittest");
+
+            // TEST
+            System.out.println("Retrieving:\n" + index.getIndexedAtDoi("10.1007/978-3-531-92639-1_25"));
         } catch (Throwable e) {
             // TODO
         }
