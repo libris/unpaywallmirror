@@ -10,7 +10,7 @@ dependencies {
 }
 
 gretty {
-    systemProperties 'xl.secret.properties': System.getProperty("xl.secret.properties")
+    systemProperties 'unpaywall.datadir': System.getProperty("unpaywall.datadir")
     httpPort = 8781
     scanInterval = 0
     jvmArgs = ['-Xmx3g']
