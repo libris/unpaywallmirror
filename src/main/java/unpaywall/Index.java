@@ -6,7 +6,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.zip.GZIPInputStream;
-import java.util.zip.GZIPOutputStream;
 
 import org.codehaus.jackson.map.ObjectMapper;
 
@@ -137,25 +136,39 @@ public class Index {
 
     private void writeIndexToFile() throws IOException {
         System.err.println("Writing index to: " + path + "/index ..");
-        try (ObjectOutputStream out = new ObjectOutputStream(new GZIPOutputStream(new FileOutputStream(path+"/index")))) {
-            out.writeObject(table);
+
+        try (BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(path+"/index"))) {
+            ByteBuffer buf = ByteBuffer.allocate(4);
+            for (int i = 0; i < tableSize; ++i) {
+                buf.putInt(table[i]);
+                buf.clear(); // sigh
+                out.write(buf.array());
+            }
         }
+
         System.err.println("Done.");
     }
 
     private boolean loadIndexFromFile() throws IOException {
         File f = new File(path+"/index");
-        if (!f.exists())
-            return false;
-
-        try (ObjectInputStream in = new ObjectInputStream(new GZIPInputStream(new FileInputStream(f)))) {
-            System.err.println("Loading index from: " + path + "/index ..");
-            table = (int[]) in.readObject();
-            System.err.println("Done.");
-        } catch (ClassNotFoundException e) {
-            System.err.println("Index is corrupt.");
+        if (!f.exists()) {
+            System.err.println("No index available.");
             return false;
         }
+
+        System.err.println("Loading index from: " + path + "/index ..");
+
+        byte[] b = new byte[4];
+        ByteBuffer buf = ByteBuffer.wrap(b);
+        try (BufferedInputStream in = new BufferedInputStream(new FileInputStream(f))) {
+            for (int i = 0; i < tableSize; ++i) {
+                buf.clear();
+                in.readNBytes(b, 0, 4);
+                table[i] = buf.getInt();
+            }
+        }
+
+        System.err.println("Done.");
         return true;
     }
 }
