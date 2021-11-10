@@ -19,5 +19,9 @@ The first time the service starts (with a new datadump) it will spend some time 
 
 If you need to test things out or make some changes, and have a dump or a part of one, use the head command to limit the amount of data you need to work with, like so:
 ```
-$ zcat unpaywall_snapshot_2021-07-02T151134.jsonl.gz | head -10000 | split -l 128 --numeric-suffixes=1 --suffix-length=8 --filter='gzip > $FILE.gz' - /tmp/splittest/
+$ zcat unpaywall_snapshot_2021-07-02T151134.jsonl.gz | head -10000 | split -l 128 --numeric-suffixes=1 --suffix-length=8 --filter='gzip > $FILE.gz' - $DEST_DIR_WITH_TRAILING_SLASH
+```
+And run the dev-server with
+``` 
+./gradlew appRun -Dunpaywall.datadir="$DEST_DIR_WITHOUT_TRAILING_SLASH"
 ```
