@@ -96,7 +96,6 @@ public class Index {
     }
 
     private void indexFile(File file) throws IOException {
-        System.err.println("Scanning file: " + file.getName());
         int fileNumber = Integer.parseInt(file.getName().substring(0, 8));
         try (GZIPInputStream in = new GZIPInputStream(new FileInputStream(file))) {
             byte[] data = in.readAllBytes();
@@ -126,8 +125,7 @@ public class Index {
                         System.err.println("WARNING! The index is filled to above 70% of capacity. You need to increase the 'tableSize' variable!");
                     }
 
-                    System.err.println("Indexing doi: " + doi + " in file number: " + fileNumber + " at offset: " + entryBeginsAt);
-
+                    //System.err.println("Indexing doi: " + doi + " in file number: " + fileNumber + " at offset: " + entryBeginsAt);
                     entryBeginsAt = i+1;
                 }
             }

@@ -5,8 +5,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
-
-// TODO: Perhaps use a read-write type lock, to make sure the table is written before reading it. Doing so should also guard against not-in-my-cache problems.
+import java.io.PrintStream;
 
 public class Api extends HttpServlet {
 
@@ -16,14 +15,12 @@ public class Api extends HttpServlet {
     public void init() {
         try {
             synchronized (this) {
-                index = new Index("/tmp/splittest");
+                index = new Index(System.getProperty("unpaywall.datadir"));
                 indexIsAvailable = true;
             }
-
-            // TEST
-            System.out.println("Retrieving:\n" + index.getByDoi("10.1007/978-3-531-92639-1_25"));
         } catch (Throwable e) {
-            // TODO
+            System.err.println("Init failed with: " + e);
+            e.printStackTrace(new PrintStream(System.err));
         }
     }
 
@@ -55,13 +52,10 @@ public class Api extends HttpServlet {
                 while (doi.startsWith("/"))
                     doi = doi.substring(1);
 
-                System.err.println("Doing request for "+doi);
-
                 String responseValue = index.getByDoi(doi);
                 if (responseValue == null) {
                     res.setStatus(HttpServletResponse.SC_NOT_FOUND);
                 } else {
-                    System.err.println("Sending response");
                     res.setStatus(HttpServletResponse.SC_OK);
                     try (OutputStreamWriter out = new OutputStreamWriter(res.getOutputStream())) {
                         out.write(responseValue);
