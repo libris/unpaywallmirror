@@ -5,6 +5,8 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
+// TODO: Perhaps use a read-write type lock, to make sure the table is written before reading it. Doing so should also guard against not-in-my-cache problems.
+
 public class Api extends HttpServlet {
     public void init() {
         Index index;

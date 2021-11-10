@@ -38,13 +38,11 @@ public class Index {
     data grows), let's just size the table at 2Gb and call it a day.
      */
 
-    final int[] table;
+    int[] table;
     final int tableSize = 536870912; // This number of ints = 2Gb ( 2*1024*1024*1024/4 )
     final ObjectMapper mapper = new ObjectMapper();
     final String path;
     int indexCount = 0;
-
-    // TODO: Close the damn streams (!!)
 
     public String getByDoi(String doi) throws IOException {
         int hash = Math.abs(doi.hashCode());
@@ -86,12 +84,13 @@ public class Index {
 
     private String getEntryAt(int fileNumber, int offset) throws IOException {
         String fileName = String.format("%08d.gz", fileNumber);
-        GZIPInputStream in = new GZIPInputStream(new FileInputStream(path+"/"+fileName));
-        in.skipNBytes(offset);
-        byte[] data = in.readAllBytes();
-        for (int i = 0; i < data.length; ++i) {
-            if (data[i] == 10 || i == data.length - 1) { // = LF (\n) or EOF
-                return new String(data, 0, i, StandardCharsets.UTF_8);
+        try (GZIPInputStream in = new GZIPInputStream(new FileInputStream(path+"/"+fileName))) {
+            in.skipNBytes(offset);
+            byte[] data = in.readAllBytes();
+            for (int i = 0; i < data.length; ++i) {
+                if (data[i] == 10 || i == data.length - 1) { // = LF (\n) or EOF
+                    return new String(data, 0, i, StandardCharsets.UTF_8);
+                }
             }
         }
         return null; // can't happen
@@ -100,48 +99,48 @@ public class Index {
     private void indexFile(File file) throws IOException {
         System.err.println("Scanning file: " + file.getName());
         int fileNumber = Integer.parseInt(file.getName().substring(0, 8));
-        GZIPInputStream in = new GZIPInputStream(new FileInputStream(file));
-        byte[] data = in.readAllBytes();
+        try (GZIPInputStream in = new GZIPInputStream(new FileInputStream(file))) {
+            byte[] data = in.readAllBytes();
 
-        int entryBeginsAt = 0;
-        for (int i = 0; i < data.length; ++i) {
-            if (data[i] == 10 || i == data.length - 1) { // = LF (\n) or EOF
-                // The current line is now in between entryBeginsAt and i
-                String line = new String(data, entryBeginsAt, i-entryBeginsAt, StandardCharsets.UTF_8);
-                Map json = mapper.readValue(line, HashMap.class);
-                String doi = (String) json.get("doi");
+            int entryBeginsAt = 0;
+            for (int i = 0; i < data.length; ++i) {
+                if (data[i] == 10 || i == data.length - 1) { // = LF (\n) or EOF
+                    // The current line is now in between entryBeginsAt and i
+                    String line = new String(data, entryBeginsAt, i-entryBeginsAt, StandardCharsets.UTF_8);
+                    Map json = mapper.readValue(line, HashMap.class);
+                    String doi = (String) json.get("doi");
 
-                // insert into index
-                int hash = Math.abs(doi.hashCode());
-                int tableIndex = hash % (tableSize / 2);
-                int offset = entryBeginsAt;
-                int linearProbe = 0;
-                while ( table[ (tableIndex + linearProbe) * 2 + 0 ] != 0 ) {
-                    ++linearProbe;
+                    // insert into index
+                    int hash = Math.abs(doi.hashCode());
+                    int tableIndex = hash % (tableSize / 2);
+                    int offset = entryBeginsAt;
+                    int linearProbe = 0;
+                    while ( table[ (tableIndex + linearProbe) * 2 + 0 ] != 0 ) {
+                        ++linearProbe;
+                    }
+                    table[ (tableIndex + linearProbe) * 2 + 0 ] = fileNumber;
+                    table[ (tableIndex + linearProbe) * 2 + 1 ] = offset;
+
+                    ++indexCount;
+
+                    if ( (float) indexCount > (tableSize / 2.0f * 0.7f) ) {
+                        System.err.println("WARNING! The index is filled to above 70% of capacity. You need to increase the 'tableSize' variable!");
+                    }
+
+                    System.err.println("Indexing doi: " + doi + " in file number: " + fileNumber + " at offset: " + entryBeginsAt);
+
+                    entryBeginsAt = i+1;
                 }
-                table[ (tableIndex + linearProbe) * 2 + 0 ] = fileNumber;
-                table[ (tableIndex + linearProbe) * 2 + 1 ] = offset;
-
-                ++indexCount;
-
-                if ( (float) indexCount > (tableSize / 2.0f * 0.7f) ) {
-                    System.err.println("WARNING! The index is filled to above 70% of capacity. You need to increase the 'tableSize' variable!");
-                }
-
-                System.err.println("Indexing doi: " + doi + " in file number: " + fileNumber + " at offset: " + entryBeginsAt);
-
-                entryBeginsAt = i+1;
             }
         }
     }
 
     private void writeIndexToFile() throws IOException {
-        GZIPOutputStream out = new GZIPOutputStream(new FileOutputStream(path+"/index"));
-        ByteBuffer buf = ByteBuffer.allocate(4);
-        for (int i = 0; i < tableSize; ++i) {
-            buf.putInt(table[i]);
-            out.write(buf.array());
+        System.err.println("Writing index to: " + path + "/index ..");
+        try (ObjectOutputStream out = new ObjectOutputStream(new GZIPOutputStream(new FileOutputStream(path+"/index")))) {
+            out.writeObject(table);
         }
+        System.err.println("Done.");
     }
 
     private boolean loadIndexFromFile() throws IOException {
@@ -149,12 +148,13 @@ public class Index {
         if (!f.exists())
             return false;
 
-        byte[] b = new byte[4];
-        ByteBuffer buf = ByteBuffer.wrap(b);
-        GZIPInputStream in = new GZIPInputStream(new FileInputStream(f));
-        for (int i = 0; i < tableSize; ++i) {
-            in.readNBytes(b, 0, 4);
-            table[i] = buf.getInt();
+        try (ObjectInputStream in = new ObjectInputStream(new GZIPInputStream(new FileInputStream(f)))) {
+            System.err.println("Loading index from: " + path + "/index ..");
+            table = (int[]) in.readObject();
+            System.err.println("Done.");
+        } catch (ClassNotFoundException e) {
+            System.err.println("Index is corrupt.");
+            return false;
         }
         return true;
     }
