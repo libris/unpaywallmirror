@@ -48,8 +48,8 @@ public class Index {
         int tableIndex = hash % (tableSize / 2);
 
         int linearProbe = 0;
-        while ( table[ (tableIndex + linearProbe) * 2 + 0 ] != 0 ) {
-            int fileNumber = table[ (tableIndex + linearProbe) * 2 + 0 ];
+        while ( table[ ((tableIndex + linearProbe) * 2 + 0) % tableSize ] != 0 ) {
+            int fileNumber = table[ ((tableIndex + linearProbe) * 2 + 0) % tableSize ];
             int offset = table[ (tableIndex + linearProbe) * 2 + 1 ];
             ++linearProbe;
 
@@ -113,11 +113,11 @@ public class Index {
                     int tableIndex = hash % (tableSize / 2);
                     int offset = entryBeginsAt;
                     int linearProbe = 0;
-                    while ( table[ (tableIndex + linearProbe) * 2 + 0 ] != 0 ) {
+                    while ( table[ ((tableIndex + linearProbe) * 2 + 0) % tableSize ] != 0 ) {
                         ++linearProbe;
                     }
-                    table[ (tableIndex + linearProbe) * 2 + 0 ] = fileNumber;
-                    table[ (tableIndex + linearProbe) * 2 + 1 ] = offset;
+                    table[ ((tableIndex + linearProbe) * 2 + 0) % tableSize ] = fileNumber;
+                    table[ ((tableIndex + linearProbe) * 2 + 1) % tableSize ] = offset;
 
                     ++indexCount;
                     if ( (float) indexCount > ((tableSize / 2.0f) * 0.7f) ) {
