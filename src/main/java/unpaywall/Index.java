@@ -120,8 +120,7 @@ public class Index {
                     table[ (tableIndex + linearProbe) * 2 + 1 ] = offset;
 
                     ++indexCount;
-
-                    if ( (float) indexCount > (tableSize / 2.0f * 0.7f) ) {
+                    if ( (float) indexCount > ((tableSize / 2.0f) * 0.7f) ) {
                         System.err.println("WARNING! The index is filled to above 70% of capacity. You need to increase the 'tableSize' variable!");
                     }
 

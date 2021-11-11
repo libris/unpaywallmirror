@@ -14,8 +14,8 @@ public class Api extends HttpServlet {
 
     public void init() {
         try {
+            index = new Index(System.getProperty("unpaywall.datadir"));
             synchronized (this) {
-                index = new Index(System.getProperty("unpaywall.datadir"));
                 indexIsAvailable = true;
             }
         } catch (Throwable e) {
