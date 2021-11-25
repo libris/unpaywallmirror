@@ -57,10 +57,13 @@ public class Api extends HttpServlet {
                     res.setStatus(HttpServletResponse.SC_NOT_FOUND);
                 } else {
                     res.setStatus(HttpServletResponse.SC_OK);
+                    res.setContentType("application/json");
                     try (OutputStreamWriter out = new OutputStreamWriter(res.getOutputStream())) {
                         out.write(responseValue);
                     }
                 }
+            } else {
+                res.setStatus(HttpServletResponse.SC_NOT_FOUND);
             }
         }
     }
