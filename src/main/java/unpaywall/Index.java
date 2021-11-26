@@ -50,7 +50,7 @@ public class Index {
         int linearProbe = 0;
         while ( table[ ((tableIndex + linearProbe) * 2 + 0) % tableSize ] != 0 ) {
             int fileNumber = table[ ((tableIndex + linearProbe) * 2 + 0) % tableSize ];
-            int offset = table[ (tableIndex + linearProbe) * 2 + 1 ];
+            int offset = table[ ((tableIndex + linearProbe) * 2 + 1) % tableSize ];
             ++linearProbe;
 
             // If this is the one, return it!

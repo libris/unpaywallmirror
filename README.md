@@ -10,7 +10,7 @@ When you've obtained a download link do the following:
 
 1. Shut the service down
 1. Delete or move anything (like older dumps) already in place at ```$DEST_DIR_WITH_TRAILING_SLASH```, and make sure the directory exists and is writable.
-1. ``` $ curl -Ss $DOWNLOAD_URL | gunzip | split -l 128 --numeric-suffixes=1 --suffix-length=8 --filter='gzip > $FILE.gz' - $DEST_DIR_WITH_TRAILING_SLASH ``` When done from a dump on disc, expext this process to take ~2 hours. If doing it like suggested while downloading, it will obviously take longer.
+1. ``` $ curl -Ss $DOWNLOAD_URL | gunzip | split -l 128 --numeric-suffixes=1 --suffix-length=8 --filter='gzip > $FILE.gz' - $DEST_DIR_WITH_TRAILING_SLASH ``` When done from a dump on disc, expect this process to take ~2 hours. If doing it like suggested while downloading, it will obviously take longer.
 1. Start the service up again
 
 The first time the service starts (with a new datadump) it will spend some time building an index of the dump. This will only happen once. This process may take an hour or so.
