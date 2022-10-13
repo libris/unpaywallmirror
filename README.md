@@ -47,5 +47,6 @@ $ zcat unpaywall_snapshot_2021-07-02T151134.jsonl.gz | head -10000 | split -l 12
 ```
 And run the dev-server with
 ```
-./gradlew -q appRun -Dunpaywall.datadir="$UNPAYWALL_DIR_WITHOUT_TRAILING_SLASH" -Dcrossref.datadir="$CROSSREF_DIR_WITHOUT_TRAILING_SLASH" 
+./gradlew appRun -Dunpaywall.datadir="$UNPAYWALL_DIR_WITHOUT_TRAILING_SLASH" -Dcrossref.datadir="$CROSSREF_DIR_WITHOUT_TRAILING_SLASH" 
 ```
+Note that it is perfectly fine to run with only one of the dumps specified. So for example, simply do not set crossref.datadir if you wish to only mirror unpaywall data.  
