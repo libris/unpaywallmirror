@@ -6,14 +6,14 @@ Getting entries by DOI is the only supported action. There is no searching.
 
 ### Ingest a dump 
 This application assumes that source data is in the following form:
-A directory with 8-digit-numbered files, each containing a number (for example 128) of json-lines.
+A directory with 8-digit-numbered gzipped files named NNNNNNNN.gz. Each file must contain a number (for example 128) of json-lines.
 Each line should be a complete json-object, and must have the "doi" property (containing the DOI).
 The object as a whole is what will be served when the doi is looked up.
 
 Neither Unpaywall nor Crossref provide their data in precisely this form, and so the data needs a bit
 of processing (using normal ubiquitous cli tools) before it is ready to be served.
 
-First decide where in you filesystem you want Unpaywall and/or Crossref data placed.
+First decide where in your filesystem you want Unpaywall and/or Crossref data placed.
 You will need to make sure the servlet is then started with the following environment flags passed along (typically in JAVA_OPTS), for example like so:
 ```-Dunpaywall.datadir="/srv/unpaywalldata -Dcrossref.datadir="/srv/crossrefdata```
 
@@ -37,7 +37,7 @@ When you've obtained a download link do the following:
 1. Start the service up again
 
 
-The first time the service starts (with a new datadump) it will spend some time building an index of the dump. This will only happen once. This process may take an hour or so.
+The first time the service starts (with a new datadump) it will spend some time building an index of the dump. This will only happens once. This process may take an hour or so.
 
 ### Local development
 
