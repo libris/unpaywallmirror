@@ -37,7 +37,7 @@ When you've obtained a download link do the following:
 1. Start the service up again
 
 
-The first time the service starts (with a new datadump) it will spend some time building an index of the dump. This will only happens once. This process may take an hour or so.
+The first time the service starts (with a new datadump) it will spend some time building an index of the dump. This will only happen once. This process may take an hour or so.
 
 ### Local development
 
