@@ -5,17 +5,36 @@
          xsi:schemaLocation="http://java.sun.com/xml/ns/j2ee
                 http://java.sun.com/xml/ns/j2ee/web-app_2_4.xsd">
 
-    <display-name>UnpaywallMirror</display-name>
+    <display-name>OpenAccessMirror</display-name>
 
     <servlet>
         <servlet-name>UnpaywallApi</servlet-name>
-        <servlet-class>unpaywall.Api</servlet-class>
+        <servlet-class>oamirror.Api</servlet-class>
         <load-on-startup>1</load-on-startup>
+        <init-param>
+            <param-name>datasource</param-name>
+            <param-value>unpaywall</param-value>
+        </init-param>
+    </servlet>
+
+    <servlet>
+        <servlet-name>CrossrefApi</servlet-name>
+        <servlet-class>oamirror.Api</servlet-class>
+        <load-on-startup>1</load-on-startup>
+        <init-param>
+            <param-name>datasource</param-name>
+            <param-value>crossref</param-value>
+        </init-param>
     </servlet>
 
     <servlet-mapping>
         <servlet-name>UnpaywallApi</servlet-name>
         <url-pattern>/v2/*</url-pattern>
+    </servlet-mapping>
+
+    <servlet-mapping>
+        <servlet-name>CrossrefApi</servlet-name>
+        <url-pattern>/works/*</url-pattern>
     </servlet-mapping>
     
     <welcome-file-list>

@@ -1,4 +1,4 @@
-package unpaywall;
+package oamirror;
 
 import java.io.*;
 import java.nio.ByteBuffer;

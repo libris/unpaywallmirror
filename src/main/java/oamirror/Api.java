@@ -1,8 +1,9 @@
-package unpaywall;
+package oamirror;
 
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.io.File;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintStream;
@@ -14,7 +15,14 @@ public class Api extends HttpServlet {
 
     public void init() {
         try {
-            index = new Index(System.getProperty("unpaywall.datadir"));
+            String dataSource = getServletConfig().getInitParameter("datasource");
+            String dataLocation = System.getProperty(dataSource+".datadir");
+            System.err.println("Running with '" + dataSource + "' configured data location: " + dataLocation);
+            if (dataLocation == null || dataLocation.equals("")) {
+                System.err.println("No data directory specified for '" + dataSource + "', index will be unavailable.");
+                return;
+            }
+            index = new Index(dataLocation);
             synchronized (this) {
                 indexIsAvailable = true;
             }
@@ -43,7 +51,7 @@ public class Api extends HttpServlet {
         if (!available) {
             res.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
             try (OutputStreamWriter out = new OutputStreamWriter(res.getOutputStream())) {
-                out.write("The index is being (re)built, please try again later.");
+                out.write("The index is unavailable.");
             }
         } else {
             if (req.getPathInfo() != null) {

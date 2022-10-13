@@ -11,7 +11,8 @@ dependencies {
 
 gretty {
     systemProperties 'unpaywall.datadir': System.getProperty("unpaywall.datadir")
+    systemProperties 'crossref.datadir': System.getProperty("crossref.datadir")
     httpPort = 8781
     scanInterval = 0
-    jvmArgs = ['-Xmx3g']
+    jvmArgs = ['-Xmx5g']
 }
