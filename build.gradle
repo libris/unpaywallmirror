@@ -1,18 +1,61 @@
-apply plugin: 'java'
-apply plugin: 'war'
-apply from: './gretty.plugin'
+plugins {
+    id "com.github.johnrengelman.shadow" version "8.1.1"
+}
 
-sourceCompatibility = 17
-targetCompatibility = 17
+apply plugin: 'java'
+apply plugin: 'java-library'
+apply plugin: 'com.github.johnrengelman.shadow'
+
+repositories {
+    mavenCentral()
+}
+
+def mainClassName = "oamirror.OaServer"
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
 
 dependencies {
     implementation 'org.codehaus.jackson:jackson-mapper-asl:1.9.13'
+
+    api "jakarta.servlet:jakarta.servlet-api:${servletApiVersion}"
+    implementation "org.eclipse.jetty:jetty-server:${jettyVersion}"
+    implementation "org.eclipse.jetty.ee10:jetty-ee10-servlet:${jettyVersion}"
 }
 
-gretty {
-    systemProperties 'unpaywall.datadir': System.getProperty("unpaywall.datadir")
-    systemProperties 'crossref.datadir': System.getProperty("crossref.datadir")
-    httpPort = 8781
-    scanInterval = 0
-    jvmArgs = ['-Xmx5g']
+shadowJar {
+    archiveClassifier = null // removes `-all` in the filename of the created .jar
+}
+
+jar {
+    dependsOn(shadowJar)
+
+    manifest {
+        attributes "Main-Class": mainClassName
+    }
+
+    archiveClassifier = "nonfat"
+    enabled = false
+}
+
+task(appRun, dependsOn: "classes", type: JavaExec) {
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = mainClassName
+    minHeapSize = "1g"
+    maxHeapSize = "5g"
+    systemProperties(
+            "unpaywall.datadir": System.getProperty("unpaywall.datadir"),
+            "crossref.datadir": System.getProperty("crossref.datadir"),
+            "oamirror.http.port": System.getProperty("oamirror.http.port", "8080"),
+    )
+    args(System.getProperty("args", "").split() as String[])
+
+    debugOptions {
+        enabled = true
+        port = 5006
+        server = true
+        suspend = false
+    }
 }

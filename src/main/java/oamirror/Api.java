@@ -1,8 +1,8 @@
 package oamirror;
 
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintStream;
@@ -32,7 +32,6 @@ public class Api extends HttpServlet {
     }
 
     public void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
-
         /*
         The point of this little dance isn't (primarily) to protect 'indexIsAvailable'.
         It is to trigger a happens-before-guarantee on the index itself. Without this, it
