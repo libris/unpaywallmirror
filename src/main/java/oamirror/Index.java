@@ -83,16 +83,23 @@ public class Index {
 
     private String getEntryAt(int fileNumber, int offset) throws IOException {
         String fileName = String.format("%08d.gz", fileNumber);
-        try (GZIPInputStream in = new GZIPInputStream(new FileInputStream(path+"/"+fileName))) {
+        try (GZIPInputStream in = new GZIPInputStream(
+                new BufferedInputStream(new FileInputStream(path+"/"+fileName)))) {
             in.skipNBytes(offset);
-            byte[] data = in.readAllBytes();
-            for (int i = 0; i < data.length; ++i) {
-                if (data[i] == 10 || i == data.length - 1) { // = LF (\n) or EOF
-                    return new String(data, 0, i, StandardCharsets.UTF_8);
+            ByteArrayOutputStream entry = new ByteArrayOutputStream(4096);
+            byte[] buf = new byte[4096];
+            int n;
+            while ((n = in.read(buf)) != -1) {
+                for (int i = 0; i < n; ++i) {
+                    if (buf[i] == 10) { // terminate on LF
+                        entry.write(buf, 0, i);
+                        return entry.toString(StandardCharsets.UTF_8);
+                    }
                 }
+                entry.write(buf, 0, n);
             }
+            return entry.toString(StandardCharsets.UTF_8); // last entry (EOF)
         }
-        return null; // can't happen
     }
 
     private void indexFile(File file) throws IOException {
