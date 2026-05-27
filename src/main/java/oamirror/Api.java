@@ -4,8 +4,9 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
+import java.io.OutputStream;
 import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 
 public class Api extends HttpServlet {
 
@@ -48,9 +49,7 @@ public class Api extends HttpServlet {
 
         if (!available) {
             res.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
-            try (OutputStreamWriter out = new OutputStreamWriter(res.getOutputStream())) {
-                out.write("The index is unavailable.");
-            }
+            res.getOutputStream().write("The index is unavailable.".getBytes(StandardCharsets.UTF_8));
         } else {
             if (req.getPathInfo() != null) {
                 // We expect "/some:funky_doi"
@@ -58,15 +57,15 @@ public class Api extends HttpServlet {
                 while (doi.startsWith("/"))
                     doi = doi.substring(1);
 
-                String responseValue = index.getByDoi(doi);
+                byte[] responseValue = index.getByDoi(doi);
                 if (responseValue == null) {
                     res.setStatus(HttpServletResponse.SC_NOT_FOUND);
                 } else {
                     res.setStatus(HttpServletResponse.SC_OK);
                     res.setContentType("application/json");
-                    try (OutputStreamWriter out = new OutputStreamWriter(res.getOutputStream())) {
-                        out.write(responseValue);
-                    }
+                    res.setContentLength(responseValue.length);
+                    OutputStream out = res.getOutputStream();
+                    out.write(responseValue);
                 }
             } else {
                 res.setStatus(HttpServletResponse.SC_NOT_FOUND);

@@ -43,18 +43,59 @@ public class Index {
     final String path;
     int indexCount = 0;
 
-    public String getByDoi(String doi) throws IOException {
+    // The fileNumber int does double duty: we use the 21 low bits for the actual file number,
+    // and the 11 high bits for a DOI "fingerprint" that we can compare when probing,
+    // so we can reject candidates without having to fetch from DISK and parse JSON.
+    // 21 bits for fileNumber means a max of 2097151 files. Current Crossref dump has ~1.3M files,
+    // so plenty of space still. If we ever need more we'd also have to increase tableSize anyway
+    // (meaning reindex) and could give another bit to file number and one fewer to the fingerprint
+    // and still be fine.
+    static final int FILE_NUMBER_BITS = 21;
+    static final int FILE_NUMBER_MASK = (1 << FILE_NUMBER_BITS) - 1;
+    static final int MAX_FILE_NUMBER = FILE_NUMBER_MASK;
+    static final int FINGERPRINT_BITS = 32 - FILE_NUMBER_BITS; // 11
+    static final int FINGERPRINT_MASK = (1 << FINGERPRINT_BITS) - 1;
+
+    /**
+     * Secondary hash independent of String.hashCode(), used as a fingerprint stored alongside
+     * each slot. We multiply-mix the chars with a different multiplier (33 vs hashCode's 31) and
+     * a finalisation step, so a chain that clusters under hashCode() does NOT also cluster
+     * under this function.
+     */
+    static int fingerprintFor(String doi) {
+        int h = 0;
+        for (int i = 0; i < doi.length(); ++i) {
+            h = h * 33 + doi.charAt(i);
+        }
+        // Based on:
+        // https://nullprogram.com/blog/2018/07/31/#update-after-one-week
+        // https://github.com/skeeto/hash-prospector (public domain)
+        h ^= h >>> 16;
+        h *= 0x7feb352d;
+        h ^= h >>> 15;
+        int fp = h & FINGERPRINT_MASK;
+        return fp == 0 ? 1 : fp;
+    }
+
+    public byte[] getByDoi(String doi) throws IOException {
         int hash = Math.abs(doi.hashCode());
         int tableIndex = hash % (tableSize / 2);
+        int expectedFp = fingerprintFor(doi);
 
         int linearProbe = 0;
-        while ( table[ ((tableIndex + linearProbe) * 2 + 0) % tableSize ] != 0 ) {
-            int fileNumber = table[ ((tableIndex + linearProbe) * 2 + 0) % tableSize ];
-            int offset = table[ ((tableIndex + linearProbe) * 2 + 1) % tableSize ];
+        int packed;
+        while ( (packed = table[ ((tableIndex + linearProbe) * 2 + 0) % tableSize ]) != 0 ) {
             ++linearProbe;
 
-            // If this is the one, return it!
-            String entry = getEntryAt(fileNumber, offset);
+            // Memory-only fingerprint check: rejects ~2047/2048 of unrelated DOIs sharing
+            // this cluster without touching disk.
+            int slotFp = (packed >>> FILE_NUMBER_BITS) & FINGERPRINT_MASK;
+            if (slotFp != expectedFp) continue;
+
+            int fileNumber = packed & FILE_NUMBER_MASK;
+            int offset = table[ ((tableIndex + linearProbe - 1) * 2 + 1) % tableSize ];
+
+            byte[] entry = getEntryAt(fileNumber, offset);
             Map json = mapper.readValue(entry, HashMap.class);
             String candidateDoi = (String) json.get("doi");
             if (candidateDoi.equals(doi))
@@ -81,7 +122,7 @@ public class Index {
         }
     }
 
-    private String getEntryAt(int fileNumber, int offset) throws IOException {
+    private byte[] getEntryAt(int fileNumber, int offset) throws IOException {
         String fileName = String.format("%08d.gz", fileNumber);
         try (GZIPInputStream in = new GZIPInputStream(
                 new BufferedInputStream(new FileInputStream(path+"/"+fileName)))) {
@@ -93,17 +134,21 @@ public class Index {
                 for (int i = 0; i < n; ++i) {
                     if (buf[i] == 10) { // terminate on LF
                         entry.write(buf, 0, i);
-                        return entry.toString(StandardCharsets.UTF_8);
+                        return entry.toByteArray();
                     }
                 }
                 entry.write(buf, 0, n);
             }
-            return entry.toString(StandardCharsets.UTF_8); // last entry (EOF)
+            return entry.toByteArray(); // last entry (EOF)
         }
     }
 
     private void indexFile(File file) throws IOException {
         int fileNumber = Integer.parseInt(file.getName().substring(0, 8));
+        if (fileNumber <= 0 || fileNumber > MAX_FILE_NUMBER) {
+            throw new IOException("File number " + fileNumber + " from " + file.getName()
+                    + " is out of range [1, " + MAX_FILE_NUMBER + "]; bump FILE_NUMBER_BITS.");
+        }
         try (GZIPInputStream in = new GZIPInputStream(new FileInputStream(file))) {
             byte[] data = in.readAllBytes();
 
@@ -119,11 +164,13 @@ public class Index {
                     int hash = Math.abs(doi.hashCode());
                     int tableIndex = hash % (tableSize / 2);
                     int offset = entryBeginsAt;
+                    int fp = fingerprintFor(doi);
+                    int packed = (fp << FILE_NUMBER_BITS) | fileNumber;
                     int linearProbe = 0;
                     while ( table[ ((tableIndex + linearProbe) * 2 + 0) % tableSize ] != 0 ) {
                         ++linearProbe;
                     }
-                    table[ ((tableIndex + linearProbe) * 2 + 0) % tableSize ] = fileNumber;
+                    table[ ((tableIndex + linearProbe) * 2 + 0) % tableSize ] = packed;
                     table[ ((tableIndex + linearProbe) * 2 + 1) % tableSize ] = offset;
 
                     ++indexCount;
@@ -141,12 +188,10 @@ public class Index {
     private void writeIndexToFile() throws IOException {
         System.err.println("Writing index to: " + path + "/index ..");
 
-        try (BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(path+"/index"))) {
-            ByteBuffer buf = ByteBuffer.allocate(4);
+        try (DataOutputStream out = new DataOutputStream(
+                new BufferedOutputStream(new FileOutputStream(path+"/index"), 1 << 20))) {
             for (int i = 0; i < tableSize; ++i) {
-                buf.putInt(table[i]);
-                buf.clear(); // sigh
-                out.write(buf.array());
+                out.writeInt(table[i]);
             }
         }
 
@@ -162,13 +207,10 @@ public class Index {
 
         System.err.println("Loading index from: " + path + "/index ..");
 
-        byte[] b = new byte[4];
-        ByteBuffer buf = ByteBuffer.wrap(b);
-        try (BufferedInputStream in = new BufferedInputStream(new FileInputStream(f))) {
+        try (DataInputStream in = new DataInputStream(
+                new BufferedInputStream(new FileInputStream(f), 1 << 20))) {
             for (int i = 0; i < tableSize; ++i) {
-                buf.clear();
-                in.readNBytes(b, 0, 4);
-                table[i] = buf.getInt();
+                table[i] = in.readInt();
             }
         }
 
